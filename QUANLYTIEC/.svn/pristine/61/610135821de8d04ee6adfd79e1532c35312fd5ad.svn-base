@@ -1,0 +1,140 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
+using QUANLYTIEC.Models;
+using QUANLYTIEC.Models.BUS;
+using System.IO;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+using System.Data.SqlClient;
+using System.Transactions;
+
+namespace QUANLYTIEC.Controllers
+{
+    public class PartyController : BaseController
+    {
+        #region method is used for load page
+        public ActionResult PartyScheduler()
+        {
+            if (!CheckPermission())
+                return RedirectToAction("Index", "Login");
+            return View();
+        }
+        public ActionResult RegisterParty()
+        {
+            if (!CheckPermission())
+                return RedirectToAction("Index", "Login");
+            ViewBag.ComboboxPartyType = DA_PartyType.Instance.GetAll();
+            ViewBag.ComboboxFood = DA_Food.Instance.loadEntityForCombobox(true);
+            ViewBag.ComboboxService = DA_Service.Instance.loadEntityForCombobox(true);
+            return View();
+        }
+        public ActionResult EditParty(string id)
+        {
+            if (!CheckPermission())
+                return RedirectToAction("Index", "Login");
+            if(!string.IsNullOrWhiteSpace(id)&& id.All(Char.IsDigit))
+            {
+                int Id = Convert.ToInt32(id);
+                TBL_PARTY item = DA_Party.Instance.GetById(Id);
+                if(item != null)
+                {
+                    ViewBag.ComboboxPartyType = DA_PartyType.Instance.GetAll();
+                    ViewBag.ComboboxFood = DA_Food.Instance.loadEntityForCombobox(false);
+                    ViewBag.ComboboxService = DA_Service.Instance.loadEntityForCombobox(false);
+                    ViewBag.PartyFood = DA_PartyProduct.Instance.getEntityBasePartyId(Id);
+                    ViewBag.PartyService = DA_PartyService.Instance.getEntityBasePartyId(Id);
+                    return View(item);
+                }
+            }
+            return RedirectToAction("PartyScheduler", "Party");
+        }
+        #endregion
+
+        #region method is used for ajax
+        /// <summary>
+        /// ajax add or update entity
+        /// </summary>
+        /// <param name="item"></param>
+        /// <param name="isEdit"></param>
+        /// <returns></returns>
+        [HttpPost]
+        public JsonResult AddOrUpdateEntity(TBL_PARTY objectParty, List<TBL_PARTY_PRODUCT> lsObjectMeal, List<TBL_PARTY_SERVICE> lsObjecService, bool isEdit, int [][]objectDate)
+        {
+            
+            //if (objectParty.BookingDate != null && objectParty.PartyDate != null && objectParty.NegativeDate != null && ((isEdit && objectParty.PartyID > 0) || !isEdit))
+            //{
+            try
+            {
+               if(objectDate.Length >= 3)
+               {
+                   objectParty.BookingDate = new DateTime(objectDate[0][2], objectDate[0][1], objectDate[0][0]);
+                   objectParty.PartyDate = new DateTime(objectDate[1][2], objectDate[1][1], objectDate[1][0], objectDate[1][3], objectDate[1][4], 0);
+                   objectParty.NegativeDate = new DateTime(objectDate[2][2], objectDate[2][1], objectDate[2][0]);
+                   objectParty.DepositDate = ((objectDate.Length > 3) ? new DateTime(objectDate[3][2], objectDate[3][1], objectDate[3][0]) : objectParty.DepositDate);
+
+                   objectParty.UserCreate = Convert.ToInt32(Session["UserID"].ToString().All(Char.IsDigit) ? Session["UserID"] : 0);
+                       if (isEdit)
+                           return Json(DA_Party.Instance.ProcesseActionUpdateFormAllEntity(objectParty, lsObjectMeal, lsObjecService) ? 1 : 0);
+                       else
+                           return Json(DA_Party.Instance.ProcesseActionInsertFormAllEntity(objectParty, lsObjectMeal, lsObjecService) ? 1 : 0);
+               }
+               
+            }
+            catch (Exception ex) { }
+            //}
+            return Json(0);
+        }
+        /// <summary>
+        /// get list entity for calendar
+        /// </summary>
+        /// <returns></returns>
+        [HttpPost]
+        public JsonResult GetPartyForFullCalendar()
+        {
+            try
+            {
+                var dateFrom = Request.Form.GetValues("start").FirstOrDefault();
+                var dateTo = Request.Form.GetValues("end").FirstOrDefault();
+                DateTime DateFrom, DateTo;
+                if ( ( dateFrom !=null && DateTime.TryParse((dateFrom ?? "").ToString(), out DateFrom) ) && (dateTo !=null && DateTime.TryParse((dateTo ?? "").ToString(), out DateTo) )  )
+                {
+                    return Json(DA_Party.Instance.GetEntityBasePartyDate(DateFrom, DateTo), JsonRequestBehavior.AllowGet);
+                }
+            }
+            catch (Exception ex) { }
+            return Json(null);
+        }
+        /// <summary>
+        /// ajax method delete entity
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        [HttpPost]
+        public JsonResult DeleteEntity(int id)
+        {
+            try
+            {
+                if(id !=0 )
+                {
+                    string querySqlDetelePartyItem = "DELETE FROM TBL_PARTY WHERE PartyID = @Id";
+                    string querySqlDetelePartyProduct = "DELETE FROM TBL_PARTY_PRODUCT WHERE PartyID = @Id";
+                    string querySqlDetelePartyService = "DELETE FROM TBL_PARTY_SERVICE WHERE PartyID = @Id";
+                    if (DA_Party.Instance.ExecuteSqlCommand(querySqlDetelePartyItem, new SqlParameter("@Id", id)) > 0)
+                    {
+
+                        if ((DA_PartyProduct.Instance.ExecuteSqlCommand(querySqlDetelePartyProduct, new SqlParameter("@Id", id)) > 0 || DA_PartyProduct.Instance.getEntityBasePartyId(id).Count <= 0) && (DA_PartyService.Instance.ExecuteSqlCommand(querySqlDetelePartyService, new SqlParameter("@Id", id)) > 0 || DA_PartyService.Instance.getEntityBasePartyId(id).Count <= 0 ) )
+                        {
+                            return Json(1);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { }
+            return Json(0);
+        }    
+        #endregion
+    }
+}

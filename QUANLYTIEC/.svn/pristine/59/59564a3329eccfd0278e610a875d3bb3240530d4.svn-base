@@ -1,0 +1,55 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+
+namespace QUANLYTIEC.Models.BUS
+{
+    public class DA_Party : EfRepositoryBase<TBL_PARTY>
+    {
+        #region para
+        private static volatile DA_Party _instance;
+        private static readonly object SyncRoot = new Object();
+        #endregion
+
+        #region Constructor
+        public static DA_Party Instance
+        {
+            get
+            {
+                if (_instance == null)
+                {
+                    lock (SyncRoot)
+                    {
+                        if (_instance == null)
+                            _instance = new DA_Party();
+                    }
+                }
+                return _instance;
+            }
+        }
+        #endregion
+
+        #region method
+        /// <summary>
+        /// method get entity base ranger party date
+        /// </summary>
+        /// <param name="PartyDateFrom">party date start</param>
+        /// <param name="PartyDateTo">party date finish</param>
+        /// <returns></returns>
+        public List<TBL_PARTY> GetEntityBasePartyDate(DateTime PartyDateFrom, DateTime PartyDateTo)
+        {
+            try
+            {
+                using (var context = (ConnectionEFDataFirst)Activator.CreateInstance(typeof(ConnectionEFDataFirst), _connectionStr))
+                {
+                    List<TBL_PARTY> result = new List<TBL_PARTY>();
+                    result = context.TBL_PARTY.Where(n => n.PartyDate >= PartyDateFrom && n.PartyDate <= PartyDateTo).ToList();
+                    return result;
+                }
+            }
+            catch (Exception ex) { return null; }
+        }
+        #endregion
+    }
+}

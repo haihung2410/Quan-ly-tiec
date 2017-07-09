@@ -1,0 +1,32 @@
+﻿$(function () {
+    //ini control
+    init_controlInputMarskNumber("#moneyAndPayMethod input[name='pricePerTablePlan']");
+    init_controlInputMarskNumber("#moneyAndPayMethod input[name='pricePerTableReal']");
+    init_controlInputMarskNumber("#moneyAndPayMethod input[name='otherAmount']");
+    init_controlInputMarskNumber("#moneyAndPayMethod input[name='depositAmount']");
+    $('#depositDate').daterangepicker({
+        "singleDatePicker": true,
+        singleClasses: "picker_3",
+        autoUpdateInput : false,
+        startDate: $('#depositDate').val() ? new Date($('#depositDate').val()) : new Date(),
+        "locale": {
+            "format": "DD/MM/YYYY",
+            "applyLabel": "Đồng ý",
+            "cancelLabel": "Hủy",
+            "firstDay": 1
+        }
+    }, function (start, end, label) {
+        debugger;
+    });
+    $('#depositDate').on('apply.daterangepicker', function (ev, picker) {
+        $('#depositDate').val(picker.startDate._d.getDate() + "/" + (picker.startDate._d.getMonth() + 1) + "/" + picker.startDate._d.getFullYear());
+    });
+    var isPayCashAfterDoneParty = document.querySelector('#isPayCashAfterDoneParty');
+    var switchIsPayCashAfterDoneParty = new Switchery(isPayCashAfterDoneParty);
+
+    var isPayBank = document.querySelector('#isPayBank');
+    var switchIsPayBank = new Switchery(isPayBank);
+
+    var isVAT = document.querySelector('#isVAT');
+    var switchIsVAT = new Switchery(isVAT);
+});
